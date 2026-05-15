@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-// import { toPng } from 'html-to-image';
+import React, { useState, useEffect } from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   ResponsiveContainer, ReferenceLine 
@@ -13,7 +12,7 @@ const TextInput = ({ label, value, placeholder, onChange }: any) => (
     </div>
     <input
       type="text"
-      value={value}
+      value={value || ""}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
       className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors placeholder:text-slate-400"
@@ -26,7 +25,7 @@ const SliderInput = ({ label, value, min, max, step, onChange, unit = "" }: any)
   <div className="flex flex-col gap-1.5 focus-within:opacity-100 hover:opacity-100 opacity-90 transition-opacity pb-1">
     <div className="flex justify-between text-xs font-medium">
       <span className="text-slate-700">{label}</span>
-      <span className="text-blue-600 font-bold">{value.toLocaleString()}{unit ? ` ${unit}` : ''}</span>
+      <span className="text-blue-600 font-bold">{(Number(value) || 0).toLocaleString()}{unit ? ` ${unit}` : ''}</span>
     </div>
     <input
       type="range"
@@ -44,13 +43,19 @@ const KpiCard = ({ label, value, unit, highlight }: any) => (
   <div className={`p-4 rounded-xl shadow-sm border-t-4 ${highlight ? 'border-t-green-600 bg-green-50' : 'border-t-blue-600 bg-white'}`}>
     <div className="text-[11px] text-slate-500 font-semibold mb-2 leading-tight tracking-wider uppercase">{label}</div>
     <div className="text-[22px] font-bold text-slate-900 tracking-tight">
-      {value}
+      {value || "0"}
       {unit && <span className="text-xs text-slate-400 ml-1 font-medium">{unit}</span>}
     </div>
   </div>
 );
 
 export default function App() {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   // Application State
   const [hospitalName, setHospitalName] = useState("");
   const [departmentName, setDepartmentName] = useState("");
@@ -64,10 +69,10 @@ export default function App() {
   const [depreciation, setDepreciation] = useState(5);
 
   // Core Calculations
-  const totalInvestment = monitors * price;
-  const totalAnnualPatients = Math.floor((workDays / turnover) * beds);
-  const totalAnnualExams = totalAnnualPatients * examsPerPatient;
-  const estimatedAnnualRevenue = totalAnnualExams * feePerExam;
+  const totalInvestment = (monitors || 0) * (price || 0);
+  const totalAnnualPatients = Math.floor(((workDays || 0) / (turnover || 8)) * (beds || 0));
+  const totalAnnualExams = totalAnnualPatients * (examsPerPatient || 0);
+  const estimatedAnnualRevenue = totalAnnualExams * (feePerExam || 0);
   
   const paybackPeriodMonths = estimatedAnnualRevenue > 0 
     ? ((totalInvestment / estimatedAnnualRevenue) * 12).toFixed(1) 
@@ -78,135 +83,109 @@ export default function App() {
     ? ((netProfit5Years / totalInvestment) * 100).toFixed(0) 
     : 0;
     
-  const revenuePerBed = beds > 0 ? (estimatedAnnualRevenue / beds) : 0;
+  const revenuePerBed = (beds || 0) > 0 ? (estimatedAnnualRevenue / beds) : 0;
 
-  // Chart Data Generation (5 Years Cash Flow)
+  // Chart Data Generation
   const chartData = Array.from({ length: 6 }).map((_, i) => ({
     name: i === 0 ? "投资起点" : `第${i}年`,
     cashFlow: (i * estimatedAnnualRevenue) - totalInvestment
   }));
 
   const handleGenerateImage = () => {
-    window.print(); // Fallback to print as it's more reliable than external image libs for debugging white screen
+    window.print();
   };
 
   const formatCurrency = (val: number, isShort = false) => {
-    const num = Number(val);
+    const num = Number(val) || 0;
     if (isShort && Math.abs(num) >= 1000000) {
       return (num / 1000000).toFixed(2) + 'M';
     }
-    return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(num);
+    try {
+      return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(num);
+    } catch (e) {
+      return num.toString();
+    }
   };
 
   const formatNumber = (val: number) => {
-    return new Intl.NumberFormat('zh-CN').format(val);
+    const num = Number(val) || 0;
+    try {
+      return new Intl.NumberFormat('zh-CN').format(num);
+    } catch (e) {
+      return num.toString();
+    }
   };
+
+  if (!isClient) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="text-slate-400">系统初始化中...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-slate-50 text-slate-800 font-sans overflow-hidden">
-      {/* Header */}
-      <header className="bg-blue-600 text-white px-6 h-[60px] flex items-center justify-between shadow-[0_2px_4px_rgba(0,0,0,0.1)] shrink-0 z-10">
-        <h1 className="text-[16px] md:text-[18px] font-semibold tracking-[0.5px] truncate mr-4">可穿戴监护仪投入产出比(ROI)评估系统</h1>
-        <div className="flex items-center gap-3 shrink-0">
-          <span className="bg-blue-500 text-white px-2 py-1 rounded-[4px] text-[11px] font-bold tracking-wider hidden sm:block">
-            V1.2
-          </span>
-          <div className="w-8 h-8 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center">
-            <Activity className="w-4 h-4 text-white" />
-          </div>
+      <header className="bg-blue-600 text-white px-6 h-[60px] flex items-center justify-between shadow-sm shrink-0 z-10">
+        <h1 className="text-[16px] md:text-[18px] font-semibold truncate mr-4">可穿戴监护仪收益分析报告</h1>
+        <div className="flex items-center gap-3">
+          <span className="bg-blue-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">V1.3</span>
+          <Activity className="w-5 h-5" />
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 p-4 overflow-y-auto lg:overflow-hidden bg-slate-50 relative">
-        <div id="report-content" className="flex flex-col lg:flex-row gap-4 w-full lg:h-full lg:min-h-0 max-w-7xl mx-auto">
-          {/* Sidebar */}
+      <main className="flex-1 p-4 overflow-y-auto lg:overflow-hidden relative">
+        <div id="report-content" className="flex flex-col lg:flex-row gap-4 w-full lg:h-full max-w-7xl mx-auto">
           <aside className="w-full lg:w-[320px] bg-white rounded-xl p-5 shadow-sm flex flex-col gap-4 shrink-0 lg:overflow-y-auto border border-slate-100">
-            <div className="text-[14px] font-bold text-slate-500 uppercase tracking-[1px] mb-[-4px]">医院信息</div>
-            <div className="flex flex-col gap-3 pb-1">
-              <TextInput label="医院名称" value={hospitalName} placeholder="请输入医院名称 (选填)" onChange={setHospitalName} />
-              <TextInput label="科室名称" value={departmentName} placeholder="请输入科室名称 (选填)" onChange={setDepartmentName} />
-            </div>
-            <div className="text-[14px] font-bold text-slate-500 uppercase tracking-[1px] mt-2 mb-[-4px]">参数设置</div>
-            <div className="flex flex-col gap-3">
-              <SliderInput label="设备采购数量" value={monitors} min={1} max={100} step={1} unit="台" onChange={setMonitors} />
-              <SliderInput label="单台价格(元)" value={price} min={25000} max={50000} step={1000} onChange={setPrice} />
-              <SliderInput label="科室床位数" value={beds} min={10} max={200} step={5} unit="张" onChange={setBeds} />
-              <SliderInput label="平均周转天数" value={turnover} min={3} max={30} step={1} unit="天" onChange={setTurnover} />
-              <SliderInput label="人均检查次数" value={examsPerPatient} min={1} max={10} step={1} unit="次" onChange={setExamsPerPatient} />
-              <SliderInput label="检查单次收费" value={feePerExam} min={20} max={80} step={1} unit="元" onChange={setFeePerExam} />
-              <SliderInput label="年工作日" value={workDays} min={250} max={365} step={1} unit="天" onChange={setWorkDays} />
-              <SliderInput label="折旧年限" value={depreciation} min={1} max={10} step={1} unit="年" onChange={setDepreciation} />
-            </div>
+            <div className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">基础信息</div>
+            <TextInput label="医院名称" value={hospitalName} placeholder="请输入医院名称" onChange={setHospitalName} />
+            <TextInput label="科室名称" value={departmentName} placeholder="请输入科室名称" onChange={setDepartmentName} />
+            
+            <div className="h-px bg-slate-100 my-1" />
+            
+            <div className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">测算参数</div>
+            <SliderInput label="设备采购数量" value={monitors} min={1} max={100} step={1} unit="台" onChange={setMonitors} />
+            <SliderInput label="单台价格(元)" value={price} min={25000} max={50000} step={1000} onChange={setPrice} />
+            <SliderInput label="科室床位数" value={beds} min={10} max={200} step={5} unit="张" onChange={setBeds} />
+            <SliderInput label="平均周转天数" value={turnover} min={3} max={30} step={1} unit="天" onChange={setTurnover} />
+            <SliderInput label="人均检查次数" value={examsPerPatient} min={1} max={10} step={1} unit="次" onChange={setExamsPerPatient} />
+            <SliderInput label="检查单次收费" value={feePerExam} min={20} max={80} step={1} unit="元" onChange={setFeePerExam} />
+            <SliderInput label="年工作日" value={workDays} min={250} max={365} step={1} unit="天" onChange={setWorkDays} />
           </aside>
 
-          {/* Display Area */}
-          <section className="flex-1 flex flex-col gap-4 lg:overflow-y-auto min-h-0">
-            {/* Title for Report */}
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex flex-col items-center justify-center shrink-0">
-              <h2 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight text-center">
-                {hospitalName ? hospitalName : '目标医院'}
-                {departmentName ? ` - ${departmentName}` : ''}
+          <section className="flex-1 flex flex-col gap-4 lg:overflow-y-auto">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex flex-col items-center">
+              <h2 className="text-xl font-bold text-slate-800">
+                {hospitalName || '评估医院'}{departmentName ? ` - ${departmentName}` : ''} ROI分析报告
               </h2>
-              <p className="text-xs text-slate-500 mt-1.5 font-medium">可穿戴监护仪投入产出比(ROI)评估报告</p>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <KpiCard label="总投资额 (CAPEX)" value={formatCurrency(totalInvestment)} unit="元" />
-              <KpiCard label="预计回收期 (PBP)" value={paybackPeriodMonths} unit="个月" highlight />
+              <KpiCard label="总投资额" value={formatCurrency(totalInvestment)} unit="元" />
+              <KpiCard label="预计回收期" value={paybackPeriodMonths} unit="个月" highlight />
               <KpiCard label="年预计收入" value={formatCurrency(estimatedAnnualRevenue)} unit="元" />
-              <KpiCard label="5年净回报率 (ROI)" value={formatNumber(Number(roi5Years))} unit="%" highlight />
-              <KpiCard label="年收治病患总数" value={formatNumber(totalAnnualPatients)} unit="人" />
-              <KpiCard label="年检查总人次" value={formatNumber(totalAnnualExams)} unit="次" />
-              <KpiCard label="5年总净收益" value={formatCurrency(netProfit5Years, true)} unit={Math.abs(netProfit5Years) >= 1000000 ? "" : "元"} highlight />
-              <KpiCard label="单床位年创收" value={formatCurrency(revenuePerBed)} unit="元" />
+              <KpiCard label="5年回报率" value={formatNumber(Number(roi5Years))} unit="%" highlight />
             </div>
 
-            <div className="flex-1 bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col min-h-[300px]">
-              <div className="flex justify-between items-center mb-5">
-                <div className="text-[15px] font-semibold text-slate-800">5年现金流预测 (Cumulative Cash Flow)</div>
-                <div className="text-xs text-slate-500">单位：万元 (RMB 10k)</div>
+            <div className="flex-1 bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col min-h-[350px]">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-sm font-semibold">5年现金流预测 (万元)</span>
               </div>
-              
-              <div className="flex-1 w-full min-h-[250px]">
+              <div className="flex-1 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                  <AreaChart data={chartData}>
                     <defs>
-                      <linearGradient id="colorCashFlow" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#60a5fa" stopOpacity={0.2}/>
+                      <linearGradient id="colorCF" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#64748b', fontSize: 11 }} 
-                      dy={10}
-                    />
-                    <YAxis 
-                      tickFormatter={(val) => `${(val / 10000).toFixed(0)}万`} 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#64748b', fontSize: 11 }}
-                      width={50}
-                    />
-                    <RechartsTooltip 
-                      formatter={(value: number) => [formatCurrency(value), '累计现金流']}
-                      contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                      labelStyle={{ color: '#64748b', fontWeight: 'bold', marginBottom: '4px' }}
-                    />
-                    <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-                    <Area 
-                      type="step" 
-                      dataKey="cashFlow" 
-                      stroke="#2563eb" 
-                      strokeWidth={2}
-                      fillOpacity={1} 
-                      fill="url(#colorCashFlow)" 
-                      animationDuration={800}
-                    />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                    <YAxis tickFormatter={(v) => `${(v/10000).toFixed(0)}`} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                    <RechartsTooltip formatter={(v: any) => [formatCurrency(v), '累计现金流']} />
+                    <ReferenceLine y={0} stroke="#cbd5e1" />
+                    <Area type="monotone" dataKey="cashFlow" stroke="#3b82f6" fillOpacity={1} fill="url(#colorCF)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -214,16 +193,15 @@ export default function App() {
           </section>
         </div>
       </main>
-      
-      {/* Action Bar (Footer) */}
-      <footer className="bg-white h-[60px] px-6 flex items-center justify-between border-t border-slate-200 shrink-0 z-10 w-full shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
-        <div className="text-xs text-slate-500 hidden sm:block">数据实时同步更新 • 依据行业平均水平评估</div>
+
+      <footer className="bg-white h-[60px] px-6 flex items-center justify-between border-t border-slate-200 shrink-0 shadow-sm">
+        <div className="text-[10px] text-slate-400">数据仅供参考，请以实际运营为准</div>
         <button 
           onClick={handleGenerateImage} 
-          className="bg-blue-600 text-white border-none px-6 py-2.5 rounded-lg font-semibold text-[14px] cursor-pointer flex justify-center items-center gap-2 hover:bg-blue-700 active:scale-95 transition-all w-full sm:w-auto ml-auto"
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium text-sm flex items-center gap-2 hover:bg-blue-700 transition-colors"
         >
           <FileDown className="w-4 h-4" />
-          打印报告
+          生成分析报告
         </button>
       </footer>
     </div>
