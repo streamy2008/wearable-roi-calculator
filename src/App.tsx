@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
-  ResponsiveContainer, ReferenceLine 
+  ResponsiveContainer, ReferenceLine, LabelList
 } from 'recharts';
 import { FileDown, Activity } from 'lucide-react';
+import { toPng } from 'html-to-image';
 
 const TextInput = ({ label, value, placeholder, onChange }: any) => (
   <div className="flex flex-col gap-1.5 focus-within:opacity-100 hover:opacity-100 opacity-90 transition-opacity pb-1">
@@ -91,8 +92,27 @@ export default function App() {
     cashFlow: (i * estimatedAnnualRevenue) - totalInvestment
   }));
 
-  const handleGenerateImage = () => {
-    window.print();
+  const handleGenerateImage = async () => {
+    const element = document.getElementById("report-content");
+    if (!element) return;
+
+    try {
+      // Use a slightly longer delay for mobile browsers to ensure everything is painted
+      const dataUrl = await toPng(element, { 
+        backgroundColor: '#f8fafc',
+        cacheBust: true,
+        pixelRatio: 2,
+        skipFonts: true, // Sometimes help on mobile if font loading is flaky
+      });
+      
+      const link = document.createElement('a');
+      link.download = `${hospitalName || '医院'}ROI分析报告.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Image generation failed:', err);
+      window.print();
+    }
   };
 
   const formatCurrency = (val: number, isShort = false) => {
@@ -126,17 +146,17 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col bg-slate-50 text-slate-800 font-sans overflow-hidden">
-      <header className="bg-blue-600 text-white px-6 h-[60px] flex items-center justify-between shadow-sm shrink-0 z-10">
+      <header className="bg-blue-600 text-white px-6 h-[60px] flex items-center justify-between shadow-sm shrink-0 z-10 print:hidden">
         <h1 className="text-[16px] md:text-[18px] font-semibold truncate mr-4">可穿戴监护仪收益分析报告</h1>
         <div className="flex items-center gap-3">
-          <span className="bg-blue-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">V1.3</span>
+          <span className="bg-blue-500 text-white px-2 py-0.5 rounded text-[10px] font-bold">V1.6</span>
           <Activity className="w-5 h-5" />
         </div>
       </header>
 
       <main className="flex-1 p-4 overflow-y-auto lg:overflow-hidden relative">
-        <div id="report-content" className="flex flex-col lg:flex-row gap-4 w-full lg:h-full max-w-7xl mx-auto">
-          <aside className="w-full lg:w-[320px] bg-white rounded-xl p-5 shadow-sm flex flex-col gap-4 shrink-0 lg:overflow-y-auto border border-slate-100">
+        <div id="report-content" className="flex flex-col lg:flex-row gap-4 w-full lg:h-full max-w-7xl mx-auto bg-slate-50 p-1 rounded-xl">
+          <aside className="w-full lg:w-[320px] bg-white rounded-xl p-5 shadow-sm flex flex-col gap-4 shrink-0 lg:overflow-y-auto border border-slate-100 print:hidden">
             <div className="text-[12px] font-bold text-slate-400 uppercase tracking-wider">基础信息</div>
             <TextInput label="医院名称" value={hospitalName} placeholder="请输入医院名称" onChange={setHospitalName} />
             <TextInput label="科室名称" value={departmentName} placeholder="请输入科室名称" onChange={setDepartmentName} />
@@ -167,41 +187,99 @@ export default function App() {
               <KpiCard label="5年回报率" value={formatNumber(Number(roi5Years))} unit="%" highlight />
             </div>
 
-            <div className="flex-1 bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col min-h-[350px]">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-sm font-semibold">5年现金流预测 (万元)</span>
+            {/* Dedicated Net Profit Module */}
+            <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-6 shadow-md text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-blue-100 text-xs font-semibold uppercase tracking-wider mb-1">5年总纯收益预测 (累计)</div>
+                  <div className="text-3xl md:text-4xl font-bold tracking-tight">
+                    {formatCurrency(netProfit5Years)}
+                    <span className="text-lg font-medium ml-2 text-blue-200">元</span>
+                  </div>
+                </div>
+                <div className="bg-white/20 p-3 rounded-full">
+                  <Activity className="w-8 h-8 text-white" />
+                </div>
               </div>
-              <div className="flex-1 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorCF" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" tick={{fontSize: 10}} axisLine={false} tickLine={false} />
-                    <YAxis tickFormatter={(v) => `${(v/10000).toFixed(0)}`} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
-                    <RechartsTooltip formatter={(v: any) => [formatCurrency(v), '累计现金流']} />
-                    <ReferenceLine y={0} stroke="#cbd5e1" />
-                    <Area type="monotone" dataKey="cashFlow" stroke="#3b82f6" fillOpacity={1} fill="url(#colorCF)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div className="mt-4 pt-4 border-t border-white/10 text-[11px] text-blue-100 flex justify-between">
+                <span>平均年创收: {formatCurrency(estimatedAnnualRevenue)} 元</span>
+                <span>单床位年贡献: {formatCurrency(revenuePerBed)} 元</span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col gap-6">
+              <div>
+                <div className="text-sm font-semibold mb-4 text-slate-800">5年现金流预测 (万元)</div>
+                <div className="w-full h-[300px]">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={chartData} margin={{ top: 25, right: 35, left: 10, bottom: 5 }}>
+                      <defs>
+                        <linearGradient id="colorCF" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                      <YAxis tickFormatter={(v) => `${(v/10000).toFixed(0)}`} tick={{fontSize: 10}} axisLine={false} tickLine={false} />
+                      <RechartsTooltip formatter={(v: any) => [formatCurrency(v), '累计现金流']} />
+                      <ReferenceLine y={0} stroke="#cbd5e1" />
+                      <Area 
+                        type="monotone" 
+                        dataKey="cashFlow" 
+                        stroke="#3b82f6" 
+                        fillOpacity={1} 
+                        fill="url(#colorCF)"
+                        strokeWidth={2}
+                        isAnimationActive={false}
+                      >
+                        <LabelList 
+                          dataKey="cashFlow" 
+                          position="top" 
+                          offset={10}
+                          formatter={(v: number) => `${(v/10000).toFixed(1)}`}
+                          style={{ fontSize: 10, fill: '#3b82f6', fontWeight: 'bold' }}
+                        />
+                      </Area>
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Data Table for better mobile reading and as backup for chart capture issues */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="py-2 px-3 text-slate-500 font-medium tracking-wider uppercase">年度</th>
+                      <th className="py-2 px-3 text-slate-500 font-medium tracking-wider uppercase">累计现金返还 (万元)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {chartData.map((data, idx) => (
+                      <tr key={idx} className="border-b border-slate-50">
+                        <td className="py-2.5 px-3 font-medium text-slate-700">{data.name}</td>
+                        <td className={`py-2.5 px-3 font-bold ${data.cashFlow >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {(data.cashFlow / 10000).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </section>
         </div>
       </main>
 
-      <footer className="bg-white h-[60px] px-6 flex items-center justify-between border-t border-slate-200 shrink-0 shadow-sm">
+      <footer className="bg-white h-[60px] px-6 flex items-center justify-between border-t border-slate-200 shrink-0 shadow-sm print:hidden">
         <div className="text-[10px] text-slate-400">数据仅供参考，请以实际运营为准</div>
         <button 
           onClick={handleGenerateImage} 
           className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium text-sm flex items-center gap-2 hover:bg-blue-700 transition-colors"
         >
           <FileDown className="w-4 h-4" />
-          生成分析报告
+          生成报告
         </button>
       </footer>
     </div>
