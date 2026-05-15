@@ -1,0 +1,6 @@
+{
+  "name": "Wearable Monitor ROI Calculator",
+  "description": "A PWA to calculate the ROI for hospital Wearable Patient Monitors with dynamic slider inputs and PDF reporting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

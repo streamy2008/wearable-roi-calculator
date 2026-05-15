@@ -1,0 +1,8 @@
+{
+  "name": "可穿戴监护仪投入产出比(ROI)评估系统",
+  "short_name": "监护仪ROI",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb"
+}
