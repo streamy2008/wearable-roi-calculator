@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { toPng } from 'html-to-image';
+// import { toPng } from 'html-to-image';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   ResponsiveContainer, ReferenceLine 
@@ -86,35 +86,8 @@ export default function App() {
     cashFlow: (i * estimatedAnnualRevenue) - totalInvestment
   }));
 
-  // Image Export Logic
   const handleGenerateImage = () => {
-    const element = document.getElementById("report-content");
-    if (!element) return;
-    
-    // Temporarily add a background color for the snapshot to prevent transparent areas
-    const originalBg = element.style.backgroundColor;
-    element.style.backgroundColor = '#f8fafc'; // slate-50 matches the background
-
-    toPng(element, { 
-      quality: 1, 
-      pixelRatio: 2,
-      style: {
-        transform: 'scale(1)', // Ensure no transforms affect rendering
-        transformOrigin: 'top left'
-      }
-    })
-      .then((dataUrl) => {
-        element.style.backgroundColor = originalBg;
-        const link = document.createElement('a');
-        const filenamePrefix = hospitalName ? hospitalName : '目标医院';
-        link.download = `${filenamePrefix} - ROI评估报告.png`;
-        link.href = dataUrl;
-        link.click();
-      })
-      .catch((error) => {
-        element.style.backgroundColor = originalBg;
-        console.error('oops, something went wrong!', error);
-      });
+    window.print(); // Fallback to print as it's more reliable than external image libs for debugging white screen
   };
 
   const formatCurrency = (val: number, isShort = false) => {
@@ -135,8 +108,8 @@ export default function App() {
       <header className="bg-blue-600 text-white px-6 h-[60px] flex items-center justify-between shadow-[0_2px_4px_rgba(0,0,0,0.1)] shrink-0 z-10">
         <h1 className="text-[16px] md:text-[18px] font-semibold tracking-[0.5px] truncate mr-4">可穿戴监护仪投入产出比(ROI)评估系统</h1>
         <div className="flex items-center gap-3 shrink-0">
-          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-[4px] text-[11px] font-bold tracking-wider hidden sm:block">
-            OFFLINE READY
+          <span className="bg-blue-500 text-white px-2 py-1 rounded-[4px] text-[11px] font-bold tracking-wider hidden sm:block">
+            V1.2
           </span>
           <div className="w-8 h-8 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center">
             <Activity className="w-4 h-4 text-white" />
@@ -145,7 +118,7 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 p-4 lg:p-4 overflow-y-auto lg:overflow-hidden bg-slate-50 relative">
+      <main className="flex-1 p-4 overflow-y-auto lg:overflow-hidden bg-slate-50 relative">
         <div id="report-content" className="flex flex-col lg:flex-row gap-4 w-full lg:h-full lg:min-h-0 max-w-7xl mx-auto">
           {/* Sidebar */}
           <aside className="w-full lg:w-[320px] bg-white rounded-xl p-5 shadow-sm flex flex-col gap-4 shrink-0 lg:overflow-y-auto border border-slate-100">
@@ -195,7 +168,7 @@ export default function App() {
                 <div className="text-xs text-slate-500">单位：万元 (RMB 10k)</div>
               </div>
               
-              <div className="flex-1 w-full min-h-[250px]" style={{ touchAction: 'pan-y' }}>
+              <div className="flex-1 w-full min-h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                     <defs>
@@ -244,13 +217,13 @@ export default function App() {
       
       {/* Action Bar (Footer) */}
       <footer className="bg-white h-[60px] px-6 flex items-center justify-between border-t border-slate-200 shrink-0 z-10 w-full shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
-        <div className="text-xs text-slate-500 hidden sm:block">数据实时同步更新 • 依据行业平均水平估算</div>
+        <div className="text-xs text-slate-500 hidden sm:block">数据实时同步更新 • 依据行业平均水平评估</div>
         <button 
           onClick={handleGenerateImage} 
           className="bg-blue-600 text-white border-none px-6 py-2.5 rounded-lg font-semibold text-[14px] cursor-pointer flex justify-center items-center gap-2 hover:bg-blue-700 active:scale-95 transition-all w-full sm:w-auto ml-auto"
         >
           <FileDown className="w-4 h-4" />
-          导出为图片
+          打印报告
         </button>
       </footer>
     </div>
