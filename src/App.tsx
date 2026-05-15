@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import * as htmlToImage from 'html-to-image';
+import { toPng } from 'html-to-image';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   ResponsiveContainer, ReferenceLine 
@@ -95,7 +95,7 @@ export default function App() {
     const originalBg = element.style.backgroundColor;
     element.style.backgroundColor = '#f8fafc'; // slate-50 matches the background
 
-    htmlToImage.toPng(element, { 
+    toPng(element, { 
       quality: 1, 
       pixelRatio: 2,
       style: {
